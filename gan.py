@@ -27,9 +27,9 @@ tf.set_random_seed(seed)
 
 
 class DataDistribution(object):
-    def __init__(self):
-        self.mu = 4
-        self.sigma = 0.5
+    def __init__(self, mu = 4, sigma = 0.5):
+        self.mu = mu
+        self.sigma = sigma
 
     def sample(self, N):
         samples = np.random.normal(self.mu, self.sigma, N)
@@ -155,7 +155,7 @@ class GAN(object):
         self.opt_g = optimizer(self.loss_g, self.g_params)
 
 
-def train(model, data, gen, params):
+def train(model, data, gen, noise, params):
     anim_frames = []
 
     with tf.Session() as session:
@@ -166,9 +166,12 @@ def train(model, data, gen, params):
             # update discriminator
             x = data.sample(params.batch_size)
             z = gen.sample(params.batch_size)
+            # Sample noise
+            n_i = noise.sample(params.batch_size)
+            n_o = noise.sample(params.batch_size)
             loss_d, _, = session.run([model.loss_d, model.opt_d], {
-                model.x: np.reshape(x, (params.batch_size, 1)),
-                model.z: np.reshape(z, (params.batch_size, 1))
+                model.x: np.reshape(x + n_i, (params.batch_size, 1)),
+                model.z: np.reshape(z + n_o, (params.batch_size, 1))
             })
 
             # update generator
@@ -313,7 +316,7 @@ def save_animation(anim_frames, anim_path, sample_range):
 
 def main(args):
     model = GAN(args)
-    train(model, DataDistribution(), GeneratorDistribution(range=8), args)
+    train(model, DataDistribution(), GeneratorDistribution(range=8), DataDistribution(0, args.noisestd), args)
 
 
 def parse_args():
@@ -332,6 +335,8 @@ def parse_args():
                         help='path to the output animation file')
     parser.add_argument('--anim-every', type=int, default=1,
                         help='save every Nth frame for animation')
+    parser.add_argument('--noisestd', type=float, default=0.01,
+                        help='Noise STD')
     return parser.parse_args()
 
 
