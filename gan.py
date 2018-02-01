@@ -70,7 +70,8 @@ def generator(input, h_dim):
 def discriminator(input, h_dim, minibatch_layer=True):
     h0 = tf.nn.relu(linear(input, h_dim * 2, 'd0'))
     h1 = tf.nn.relu(linear(h0, h_dim * 2, 'd1'))
-
+    print("h0:{}".format(h0.shape))
+    print("h1:{}".format(h1.shape))
     # without the minibatch layer, the discriminator needs an additional layer
     # to have enough capacity to separate the two distributions correctly
     if minibatch_layer:
@@ -79,7 +80,8 @@ def discriminator(input, h_dim, minibatch_layer=True):
         h2 = tf.nn.relu(linear(h1, h_dim * 2, scope='d2'))
 
     h3 = tf.sigmoid(linear(h2, 1, scope='d3'))
-    return h3
+    print("h3:{}".format(h3.shape))
+    return h3, h2
 
 
 def minibatch(input, num_kernels=5, kernel_dim=3):
@@ -89,6 +91,9 @@ def minibatch(input, num_kernels=5, kernel_dim=3):
         tf.expand_dims(tf.transpose(activation, [1, 2, 0]), 0)
     abs_diffs = tf.reduce_sum(tf.abs(diffs), 2)
     minibatch_features = tf.reduce_sum(tf.exp(-abs_diffs), 2)
+    print(input.shape)
+    print(minibatch_features.shape)
+    print(tf.concat([input, minibatch_features], 1).shape)
     return tf.concat([input, minibatch_features], 1)
 
 
@@ -130,13 +135,13 @@ class GAN(object):
         # different inputs in TensorFlow.
         self.x = tf.placeholder(tf.float32, shape=(params.batch_size, 1))
         with tf.variable_scope('D'):
-            self.D1 = discriminator(
+            self.D1, self.D1_h2 = discriminator(
                 self.x,
                 params.hidden_size,
                 params.minibatch
             )
         with tf.variable_scope('D', reuse=True):
-            self.D2 = discriminator(
+            self.D2, self.D2_h2 = discriminator(
                 self.G,
                 params.hidden_size,
                 params.minibatch
@@ -145,7 +150,8 @@ class GAN(object):
         # Define the loss for discriminator and generator networks
         # (see the original paper for details), and create optimizers for both
         self.loss_d = tf.reduce_mean(-log(self.D1) - log(1 - self.D2))
-        self.loss_g = tf.reduce_mean(-log(self.D2))
+        # self.loss_g = tf.reduce_mean(-log(self.D2))
+        self.loss_g = tf.sqrt(tf.reduce_sum(tf.pow(self.D1_h2 - self.D2_h2, 2)))
 
         vars = tf.trainable_variables()
         self.d_params = [v for v in vars if v.name.startswith('D/')]
