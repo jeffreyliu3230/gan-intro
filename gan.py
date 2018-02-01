@@ -173,17 +173,18 @@ def train(model, data, gen, noise, params):
             x = data.sample(params.batch_size)
             z = gen.sample(params.batch_size)
             # Sample noise
-            n_i = noise.sample(params.batch_size)
-            n_o = noise.sample(params.batch_size)
+            n_x = noise.sample(params.batch_size)
+            n_z = noise.sample(params.batch_size)
             loss_d, _, = session.run([model.loss_d, model.opt_d], {
-                model.x: np.reshape(x + n_i, (params.batch_size, 1)),
-                model.z: np.reshape(z + n_o, (params.batch_size, 1))
+                model.x: np.reshape(x + n_x, (params.batch_size, 1)),
+                model.z: np.reshape(z + n_z, (params.batch_size, 1))
             })
 
             # update generator
             z = gen.sample(params.batch_size)
             loss_g, _ = session.run([model.loss_g, model.opt_g], {
-                model.z: np.reshape(z, (params.batch_size, 1))
+                model.z: np.reshape(z, (params.batch_size, 1)),
+                model.x: np.reshape(x, (params.batch_size, 1))
             })
 
             if step % params.log_every == 0:
